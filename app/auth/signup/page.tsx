@@ -2,18 +2,18 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+// import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { toast } from 'sonner'
+// import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+// import { Input } from '@/components/ui/input'
+// import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
+// import { Separator } from '@/components/ui/separator'
 import { signUpSchema } from '@/lib/validations'
 
 const formSchema = signUpSchema.extend({
@@ -26,38 +26,38 @@ const formSchema = signUpSchema.extend({
 type FormValues = z.infer<typeof formSchema>
 
 export default function SignupPage() {
-  const router = useRouter()
+  // const router = useRouter()
   const [googleLoading, setGoogleLoading] = useState(false)
 
   const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
+    // register,
+    // handleSubmit,
+    formState: { isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(formSchema) })
 
-  async function onSubmit(data: FormValues) {
-    const res = await fetch('/api/auth/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: data.name, email: data.email, password: data.password }),
-    })
-    const json = await res.json()
-    if (!json.success) {
-      toast.error(json.error?.message ?? 'Signup failed')
-      return
-    }
-    const result = await signIn('credentials', {
-      email: data.email,
-      password: data.password,
-      redirect: false,
-    })
-    if (result?.error) {
-      toast.error('Account created. Please sign in.')
-      router.push('/auth/login')
-      return
-    }
-    router.push('/dashboard')
-  }
+  // async function onSubmit(data: FormValues) {
+  //   const res = await fetch('/api/auth/signup', {
+  //     method: 'POST',
+  //     headers: { 'Content-Type': 'application/json' },
+  //     body: JSON.stringify({ name: data.name, email: data.email, password: data.password }),
+  //   })
+  //   const json = await res.json()
+  //   if (!json.success) {
+  //     toast.error(json.error?.message ?? 'Signup failed')
+  //     return
+  //   }
+  //   const result = await signIn('credentials', {
+  //     email: data.email,
+  //     password: data.password,
+  //     redirect: false,
+  //   })
+  //   if (result?.error) {
+  //     toast.error('Account created. Please sign in.')
+  //     router.push('/auth/login')
+  //     return
+  //   }
+  //   router.push('/dashboard')
+  // }
 
   async function handleGoogle() {
     setGoogleLoading(true)
@@ -99,7 +99,8 @@ export default function SignupPage() {
               <span className="ml-2">Continue with Google</span>
             </Button>
 
-            <div className="relative">
+            {/* Sign up will come in future with verification */}
+            {/* <div className="relative">
               <Separator />
               <span className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-center">
                 <span className="bg-card px-2 text-xs text-muted-foreground">or</span>
@@ -109,28 +110,28 @@ export default function SignupPage() {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="name">Full Name</Label>
-                <Input id="name" placeholder="Ishan Parnami" autoComplete="name" {...register('name')} />
+                <Input id="name" placeholder="Enter Full Name" autoComplete="name" {...register('name')} />
                 {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="you@example.com" autoComplete="email" {...register('email')} />
+                <Input id="email" type="email" placeholder="Enter Email" autoComplete="email" {...register('email')} />
                 {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" placeholder="Min 8 characters" autoComplete="new-password" {...register('password')} />
+                <Input id="password" type="password" placeholder="Enter Password" autoComplete="new-password" {...register('password')} />
                 {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input id="confirmPassword" type="password" placeholder="••••••••" autoComplete="new-password" {...register('confirmPassword')} />
+                <Input id="confirmPassword" type="password" placeholder="Confirm Password" autoComplete="new-password" {...register('confirmPassword')} />
                 {errors.confirmPassword && <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>}
               </div>
               <Button type="submit" className="w-full" disabled={isSubmitting || googleLoading}>
                 {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create Account'}
               </Button>
-            </form>
+            </form> */}
 
             <p className="text-center text-sm text-muted-foreground">
               Already have an account?{' '}
