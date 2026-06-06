@@ -26,16 +26,8 @@ export const categorySchema = z.object({
   icon: z.string().max(10),
 })
 
-export const updateUserSchema = z
-  .object({
-    name: z.string().min(2).max(100).optional(),
-    currentPassword: z.string().optional(),
-    newPassword: z.string().min(8).max(72).optional(),
-  })
-  .refine(
-    (data) => {
-      if (data.newPassword && !data.currentPassword) return false
-      return true
-    },
-    { message: 'Current password required to set new password', path: ['currentPassword'] }
-  )
+export const updateUserSchema = z.object({
+  name: z.string().min(2).max(100).optional(),
+  currentPassword: z.string().optional(),
+  newPassword: z.string().min(8).max(72).optional(),
+})

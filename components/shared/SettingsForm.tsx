@@ -13,7 +13,7 @@ import { updateUser } from '@/lib/actions/users'
 
 const nameSchema = z.object({ name: z.string().min(2).max(100) })
 const passwordSchema = z.object({
-  currentPassword: z.string().min(1, 'Required'),
+  currentPassword: z.string().optional(),
   newPassword: z.string().min(8, 'Min 8 characters').max(72),
   confirmPassword: z.string(),
 }).refine((d) => d.newPassword === d.confirmPassword, {
@@ -46,7 +46,7 @@ export function SettingsForm({ user, hasPassword }: SettingsFormProps) {
 
   async function onPasswordSubmit(data: z.infer<typeof passwordSchema>) {
     const formData = new FormData()
-    formData.set('currentPassword', data.currentPassword)
+    if (data.currentPassword) formData.set('currentPassword', data.currentPassword)
     formData.set('newPassword', data.newPassword)
     const result = await updateUser(formData)
     if (result.success) {

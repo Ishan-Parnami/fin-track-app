@@ -34,11 +34,11 @@ export async function updateUser(formData: FormData): Promise<ActionResult> {
       where: eq(users.id, userId),
       columns: { password: true },
     })
-    if (!user?.password) {
-      return { success: false, error: 'No password set. Use Google sign-in or set a password first.' }
+    if (user?.password) {
+      if (!currentPassword) return { success: false, error: 'Current password is required' }
+      const valid = await bcrypt.compare(currentPassword, user.password)
+      if (!valid) return { success: false, error: 'Current password is incorrect' }
     }
-    const valid = await bcrypt.compare(currentPassword!, user.password)
-    if (!valid) return { success: false, error: 'Current password is incorrect' }
     updates.password = await bcrypt.hash(newPassword, 12)
   }
 
