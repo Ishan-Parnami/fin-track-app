@@ -1,9 +1,8 @@
 import Link from 'next/link'
 import { TrendingUp, BarChart3, Tags, Shield } from 'lucide-react'
+import { ThemeToggle } from '@/components/layout/ThemeToggle'
 
 export const revalidate = 3600
-
-const BUILT_AT = new Date().toISOString()
 
 const features = [
   {
@@ -38,6 +37,7 @@ export default function LandingPage() {
             Fin<span className="text-primary">Track</span>
           </span>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <Link
               href="/auth/login"
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5"
@@ -66,7 +66,7 @@ export default function LandingPage() {
           under control.
         </h1>
         <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
-          Log transactions, visualise spending trends, and understand your savings rate —
+          Log transactions, visualise spending trends, and understand your savings rate -
           all in one clean dashboard. No spreadsheets. No subscription fees.
         </p>
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -123,9 +123,9 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-border/50 py-8">
         <div className="mx-auto max-w-6xl px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <p>© 2025 FinTrack. Built with Next.js 15.</p>
+          <p>© 2025 FinTrack. Built with Next.js</p>
           <p className="font-mono text-xs opacity-60">
-            ISR revalidate: 3600s · Built at: {BUILT_AT.slice(0, 16).replace('T', ' ')} UTC
+            ISR revalidate: 3600s · ishan @dev
           </p>
         </div>
       </footer>

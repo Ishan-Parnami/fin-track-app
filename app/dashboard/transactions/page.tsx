@@ -44,8 +44,8 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
   const conditions = [eq(transactions.userId, userId)]
   if (type === 'income' || type === 'expense') conditions.push(eq(transactions.type, type))
   if (categoryId) conditions.push(eq(transactions.categoryId, categoryId))
-  if (from) conditions.push(gte(transactions.date, new Date(from)))
-  if (to) conditions.push(lte(transactions.date, new Date(to)))
+  if (from) conditions.push(gte(transactions.date, new Date(`${from}T00:00:00`)))
+  if (to) conditions.push(lte(transactions.date, new Date(`${to}T23:59:59`)))
   const where = and(...conditions)
 
   const [rawItems, [{ total }], userCategories] = await Promise.all([
