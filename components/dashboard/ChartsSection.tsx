@@ -4,18 +4,14 @@ import { useState, useCallback, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
-  AreaChart, Area, PieChart, Pie, Cell,
+  AreaChart, Area, PieChart, Pie,
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatCurrency } from '@/lib/utils'
-import type { ChartPoint, CategorySummary, DashboardSummary } from '@/types'
-
-type Period = 'weekly' | 'monthly' | 'yearly'
+import type { ChartPoint, CategorySummary, DashboardSummary, Period } from '@/types'
 
 interface ChartsSectionProps {
-  month: string
-  week: string
   initialData: DashboardSummary
 }
 
@@ -72,8 +68,22 @@ function AreaChartView({ data }: { data: ChartPoint[] }) {
   )
 }
 
+function PieCategoryTooltip({ active, payload }: { active?: boolean; payload?: Array<{ name: string; value: number; payload: { color: string } }> }) {
+  if (!active || !payload?.length) return null
+  const p = payload[0]
+  return (
+    <div className="rounded-lg border bg-card shadow-md p-3 text-xs space-y-1">
+      <div className="flex items-center gap-2">
+        <span className="h-2 w-2 rounded-full shrink-0" style={{ background: p.payload.color }} />
+        <span className="font-medium">{p.name}</span>
+      </div>
+      <p className="font-numeric text-muted-foreground">{formatCurrency(p.value)}</p>
+    </div>
+  )
+}
+
 function PieChartView({ categories }: { categories: CategorySummary[] }) {
-  const data = categories.slice(0, 8)
+  const data = categories.slice(0, 8).map((cat) => ({ ...cat, fill: cat.color }))
   if (data.length === 0) {
     return <p className="h-55 flex items-center justify-center text-sm text-muted-foreground">No expense data.</p>
   }
@@ -82,12 +92,8 @@ function PieChartView({ categories }: { categories: CategorySummary[] }) {
       <div className="flex-1 min-w-0">
         <ResponsiveContainer width="100%" height={220}>
           <PieChart>
-            <Pie data={data} dataKey="total" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={2}>
-              {data.map((cat) => (
-                <Cell key={cat.id} fill={cat.color} />
-              ))}
-            </Pie>
-            <Tooltip formatter={(v) => formatCurrency(v as number)} />
+            <Pie data={data} dataKey="total" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={2} />
+            <Tooltip content={<PieCategoryTooltip />} />
           </PieChart>
         </ResponsiveContainer>
       </div>
@@ -104,17 +110,23 @@ function PieChartView({ categories }: { categories: CategorySummary[] }) {
   )
 }
 
-export function ChartsSection({ month, week, initialData }: ChartsSectionProps) {
+export function ChartsSection({ initialData }: ChartsSectionProps) {
   const searchParams = useSearchParams()
   const period = (searchParams.get('period') ?? 'monthly') as Period
+  const week = searchParams.get('week') ?? ''
+  const month = searchParams.get('month') ?? ''
+  const year = searchParams.get('year') ?? ''
+
   const [data, setData] = useState<DashboardSummary>(initialData)
   const [loading, setLoading] = useState(false)
 
-  const fetchData = useCallback(async (newMonth: string, newPeriod: Period, newWeek: string) => {
+  const fetchData = useCallback(async (p: Period, w: string, mo: string, yr: string) => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ month: newMonth, period: newPeriod })
-      if (newPeriod === 'weekly' && newWeek) params.set('week', newWeek)
+      const params = new URLSearchParams({ period: p })
+      if (p === 'weekly' && w) params.set('week', w)
+      if (p === 'monthly' && mo) params.set('month', mo)
+      if (p === 'yearly' && yr) params.set('year', yr)
       const res = await fetch(`/api/summary?${params.toString()}`)
       const json = await res.json()
       if (json.success) setData(json.data)
@@ -124,17 +136,23 @@ export function ChartsSection({ month, week, initialData }: ChartsSectionProps) 
   }, [])
 
   useEffect(() => {
-    fetchData(month, period, week)
-  }, [month, period, week, fetchData])
+    fetchData(period, week, month, year)
+  }, [period, week, month, year, fetchData])
 
   return (
     <div className="space-y-4">
-
       {loading ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <Skeleton className="h-82 rounded-xl" />
-          <Skeleton className="h-82 rounded-xl" />
-          <Skeleton className="h-82 rounded-xl" />
+          {[0, 1, 2].map((i) => (
+            <Card key={i}>
+              <CardHeader className="pb-2 pt-4 px-4">
+                <Skeleton className="h-4 w-32" />
+              </CardHeader>
+              <CardContent className="px-2 pb-4">
+                <Skeleton className="h-55 rounded-lg" />
+              </CardContent>
+            </Card>
+          ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

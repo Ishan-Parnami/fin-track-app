@@ -2,13 +2,14 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { toYearMonth } from '@/lib/utils'
 
 function getMonthOptions() {
   const options: { value: string; label: string }[] = []
   const now = new Date()
   for (let i = -11; i <= 1; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
-    const value = d.toISOString().slice(0, 7)
+    const value = toYearMonth(d)
     const label = d.toLocaleString('default', { month: 'long', year: 'numeric' })
     options.push({ value, label })
   }
@@ -28,6 +29,8 @@ export function MonthSelector({ currentMonth }: MonthSelectorProps) {
     if (!month) return
     const params = new URLSearchParams(searchParams.toString())
     params.set('month', month)
+    params.delete('week')
+    params.delete('year')
     router.push(`?${params.toString()}`)
   }
 

@@ -229,6 +229,17 @@ The `ChartsSection` component starts with SSR-fetched initial data (no waterfall
 | `Suspense` boundaries | `MonthSelector`, `TransactionFilters` (both use `useSearchParams`) |
 | Responsive design | Tailwind breakpoints, collapsible sidebar, mobile Sheet drawer |
 
+
+---
+
+# Demo user
+
+```
+Name: Karan Aujla
+Email: karan@aujla.com
+Password: kar@nAuj1a
+```
+
 ---
 
 ## Assumptions and Limitations

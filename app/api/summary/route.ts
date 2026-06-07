@@ -2,15 +2,9 @@ import { and, desc, eq, gte, lte, sql, sum } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { categories, transactions } from '@/lib/db/schema'
 import { requireAuth } from '@/lib/auth-guard'
-import { ok, err } from '@/lib/api-response'
+import { ok } from '@/lib/api-response'
+import { getDateRange } from '@/lib/utils'
 import type { CategorySummary, ChartPoint, DashboardSummary, TransactionWithCategory } from '@/types'
-
-function parseMonth(month: string): { from: Date; to: Date } {
-  const [year, mon] = month.split('-').map(Number)
-  const from = new Date(year, mon - 1, 1)
-  const to = new Date(year, mon, 0, 23, 59, 59, 999)
-  return { from, to }
-}
 
 function safeParse(val: string | null): number {
   return parseFloat(val ?? '0') || 0
@@ -22,54 +16,37 @@ export async function GET(request: Request) {
   const { userId } = guard
 
   const { searchParams } = new URL(request.url)
-  const monthParam = searchParams.get('month') ?? new Date().toISOString().slice(0, 7)
   const period = (searchParams.get('period') ?? 'monthly') as 'weekly' | 'monthly' | 'yearly'
-  const weekParam = searchParams.get('week') // YYYY-MM-DD, week start
+  const weekParam = searchParams.get('week') ?? undefined
+  const monthParam = searchParams.get('month') ?? undefined
+  const yearParam = searchParams.get('year') ?? undefined
 
-  if (!/^\d{4}-\d{2}$/.test(monthParam)) {
-    return err('INVALID_MONTH', 'Month must be in YYYY-MM format', 400)
-  }
+  const { statsFrom, statsTo, chartFrom, chartTo, groupBy } = getDateRange({
+    period,
+    week: weekParam,
+    month: monthParam,
+    year: yearParam,
+  })
 
-  const { from: monthFrom, to } = parseMonth(monthParam)
   const userWhere = eq(transactions.userId, userId)
 
-  // Compute rangeFrom and effectiveTo based on period
-  let rangeFrom: Date
-  let effectiveTo: Date
-  if (period === 'weekly' && weekParam) {
-    rangeFrom = new Date(`${weekParam}T00:00:00`)
-    effectiveTo = new Date(rangeFrom)
-    effectiveTo.setDate(effectiveTo.getDate() + 6)
-    effectiveTo.setHours(23, 59, 59, 999)
-  } else if (period === 'monthly') {
-    rangeFrom = new Date(monthFrom)
-    rangeFrom.setMonth(rangeFrom.getMonth() - 11)
-    effectiveTo = to
-  } else if (period === 'yearly') {
-    rangeFrom = new Date(0)
-    effectiveTo = to
-  } else {
-    rangeFrom = monthFrom
-    effectiveTo = to
-  }
-
-  // --- Summary stats for the period range ---
+  // --- Summary stats (exact selected period) ---
   const [incomeRow] = await db
     .select({ total: sum(transactions.amount) })
     .from(transactions)
-    .where(and(userWhere, eq(transactions.type, 'income'), gte(transactions.date, rangeFrom), lte(transactions.date, effectiveTo)))
+    .where(and(userWhere, eq(transactions.type, 'income'), gte(transactions.date, statsFrom), lte(transactions.date, statsTo)))
 
   const [expenseRow] = await db
     .select({ total: sum(transactions.amount) })
     .from(transactions)
-    .where(and(userWhere, eq(transactions.type, 'expense'), gte(transactions.date, rangeFrom), lte(transactions.date, effectiveTo)))
+    .where(and(userWhere, eq(transactions.type, 'expense'), gte(transactions.date, statsFrom), lte(transactions.date, statsTo)))
 
   const totalIncome = safeParse(incomeRow.total)
   const totalExpense = safeParse(expenseRow.total)
   const netBalance = totalIncome - totalExpense
   const savingsRate = totalIncome > 0 ? Math.round((netBalance / totalIncome) * 100) : 0
 
-  // --- Category breakdown (expenses for the period range) ---
+  // --- Category breakdown (exact selected period) ---
   const catRows = await db
     .select({
       categoryId: transactions.categoryId,
@@ -81,7 +58,7 @@ export async function GET(request: Request) {
     .from(transactions)
     .leftJoin(categories, eq(transactions.categoryId, categories.id))
     .where(
-      and(userWhere, eq(transactions.type, 'expense'), gte(transactions.date, rangeFrom), lte(transactions.date, effectiveTo))
+      and(userWhere, eq(transactions.type, 'expense'), gte(transactions.date, statsFrom), lte(transactions.date, statsTo))
     )
     .groupBy(transactions.categoryId, categories.name, categories.color, categories.icon)
 
@@ -99,8 +76,7 @@ export async function GET(request: Request) {
   // --- Period-aware chart data ---
   let chartData: ChartPoint[] = []
 
-  if (period === 'weekly') {
-    // Aggregate by day within the selected week window
+  if (groupBy === 'day') {
     const rows = await db
       .select({
         day: sql<string>`TO_CHAR(${transactions.date}, 'YYYY-MM-DD')`,
@@ -108,7 +84,7 @@ export async function GET(request: Request) {
         total: sum(transactions.amount),
       })
       .from(transactions)
-      .where(and(userWhere, gte(transactions.date, rangeFrom), lte(transactions.date, effectiveTo)))
+      .where(and(userWhere, gte(transactions.date, chartFrom), lte(transactions.date, chartTo)))
       .groupBy(sql`TO_CHAR(${transactions.date}, 'YYYY-MM-DD')`, transactions.type)
 
     const dayMap: Record<string, { income: number; expense: number }> = {}
@@ -123,11 +99,28 @@ export async function GET(request: Request) {
         const label = d.toLocaleString('default', { weekday: 'short', month: 'short', day: 'numeric' })
         return { label, income: v.income, expense: v.expense, balance: v.income - v.expense }
       })
-  } else if (period === 'monthly') {
-    // Last 12 months ending at selected month
-    const twelveMonthsAgo = new Date(monthFrom)
-    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11)
+  } else if (groupBy === 'week') {
+    // Monthly period: group by week-of-month (1–5)
+    const rows = await db
+      .select({
+        week: sql<string>`TO_CHAR(${transactions.date}, 'W')`,
+        type: transactions.type,
+        total: sum(transactions.amount),
+      })
+      .from(transactions)
+      .where(and(userWhere, gte(transactions.date, chartFrom), lte(transactions.date, chartTo)))
+      .groupBy(sql`TO_CHAR(${transactions.date}, 'W')`, transactions.type)
 
+    const weekMap: Record<string, { income: number; expense: number }> = {}
+    for (const r of rows) {
+      if (!weekMap[r.week]) weekMap[r.week] = { income: 0, expense: 0 }
+      weekMap[r.week][r.type] += safeParse(r.total)
+    }
+    chartData = Object.entries(weekMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([w, v]) => ({ label: `Week ${w}`, income: v.income, expense: v.expense, balance: v.income - v.expense }))
+  } else {
+    // Yearly: group by month (Jan–Dec of selected year), cross-year comparison uses all time
     const rows = await db
       .select({
         month: sql<string>`TO_CHAR(${transactions.date}, 'YYYY-MM')`,
@@ -135,7 +128,7 @@ export async function GET(request: Request) {
         total: sum(transactions.amount),
       })
       .from(transactions)
-      .where(and(userWhere, gte(transactions.date, twelveMonthsAgo), lte(transactions.date, effectiveTo)))
+      .where(and(userWhere, gte(transactions.date, chartFrom), lte(transactions.date, chartTo)))
       .groupBy(sql`TO_CHAR(${transactions.date}, 'YYYY-MM')`, transactions.type)
 
     const monthMap: Record<string, { income: number; expense: number }> = {}
@@ -150,26 +143,6 @@ export async function GET(request: Request) {
         const label = new Date(parseInt(y), parseInt(m) - 1).toLocaleString('default', { month: 'short', year: '2-digit' })
         return { label, income: v.income, expense: v.expense, balance: v.income - v.expense }
       })
-  } else {
-    // yearly — by year
-    const rows = await db
-      .select({
-        year: sql<string>`TO_CHAR(${transactions.date}, 'YYYY')`,
-        type: transactions.type,
-        total: sum(transactions.amount),
-      })
-      .from(transactions)
-      .where(eq(transactions.userId, userId))
-      .groupBy(sql`TO_CHAR(${transactions.date}, 'YYYY')`, transactions.type)
-
-    const yearMap: Record<string, { income: number; expense: number }> = {}
-    for (const r of rows) {
-      if (!yearMap[r.year]) yearMap[r.year] = { income: 0, expense: 0 }
-      yearMap[r.year][r.type] += safeParse(r.total)
-    }
-    chartData = Object.entries(yearMap)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([year, v]) => ({ label: year, income: v.income, expense: v.expense, balance: v.income - v.expense }))
   }
 
   // --- Recent 5 transactions (all time) ---

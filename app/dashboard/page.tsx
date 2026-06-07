@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
-import { and, desc, eq, gte, lte, or, isNull, sql, sum } from 'drizzle-orm'
+import { and, desc, eq, gte, lte, or, isNull, sum } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { transactions, categories } from '@/lib/db/schema'
@@ -9,14 +9,15 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { SummaryCards } from '@/components/dashboard/SummaryCards'
 import { MonthSelector } from '@/components/dashboard/MonthSelector'
 import { WeekSelector } from '@/components/dashboard/WeekSelector'
+import { YearSelector } from '@/components/dashboard/YearSelector'
 import { PeriodToggle } from '@/components/dashboard/PeriodToggle'
 import { ResetFilters } from '@/components/shared/ResetFilters'
 import { CategoryBreakdown } from '@/components/dashboard/CategoryBreakdown'
 import { RecentTransactions } from '@/components/dashboard/RecentTransactions'
 import { ChartsSection } from '@/components/dashboard/ChartsSection'
 import { AddTransactionDialog } from '@/components/transactions/AddTransactionDialog'
-import { currentMonthParam, getMonthRange } from '@/lib/utils'
-import type { DashboardSummary, CategorySummary, ChartPoint, TransactionWithCategory } from '@/types'
+import { getDateRange, toYearMonth, startOfISOWeek, toISODate } from '@/lib/utils'
+import type { DashboardSummary, CategorySummary, ChartPoint, TransactionWithCategory, Period } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,8 +25,8 @@ function safeParse(val: string | null): number {
   return parseFloat(val ?? '0') || 0
 }
 
-async function getDashboardData(userId: string, month: string): Promise<DashboardSummary> {
-  const { from, to } = getMonthRange(month)
+async function getDashboardData(userId: string, period: Period, week?: string, month?: string, year?: string): Promise<DashboardSummary> {
+  const { statsFrom: from, statsTo: to } = getDateRange({ period, week, month, year })
   const userWhere = eq(transactions.userId, userId)
 
   const [incomeRow] = await db
@@ -67,31 +68,7 @@ async function getDashboardData(userId: string, month: string): Promise<Dashboar
     }))
     .sort((a, b) => b.total - a.total)
 
-  // Monthly chart data (last 12 months default)
-  const twelveMonthsAgo = new Date(from)
-  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11)
-  const chartRows = await db
-    .select({
-      month: sql<string>`TO_CHAR(${transactions.date}, 'YYYY-MM')`,
-      type: transactions.type,
-      total: sum(transactions.amount),
-    })
-    .from(transactions)
-    .where(and(userWhere, gte(transactions.date, twelveMonthsAgo), lte(transactions.date, to)))
-    .groupBy(sql`TO_CHAR(${transactions.date}, 'YYYY-MM')`, transactions.type)
-
-  const monthMap: Record<string, { income: number; expense: number }> = {}
-  for (const r of chartRows) {
-    if (!monthMap[r.month]) monthMap[r.month] = { income: 0, expense: 0 }
-    monthMap[r.month][r.type] += safeParse(r.total)
-  }
-  const chartData: ChartPoint[] = Object.entries(monthMap)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([m, v]) => {
-      const [y, mo] = m.split('-')
-      const label = new Date(parseInt(y), parseInt(mo) - 1).toLocaleString('default', { month: 'short', year: '2-digit' })
-      return { label, income: v.income, expense: v.expense, balance: v.income - v.expense }
-    })
+  const chartData: ChartPoint[] = []
 
   const recentRows = await db
     .select({
@@ -136,20 +113,22 @@ async function getUserCategories(userId: string) {
 }
 
 interface DashboardPageProps {
-  searchParams: Promise<{ month?: string; period?: string; week?: string }>
+  searchParams: Promise<{ month?: string; period?: string; week?: string; year?: string }>
 }
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const session = await auth()
   if (!session?.user?.id) redirect('/auth/login')
 
-  const { month: monthParam, period: periodParam, week: weekParam } = await searchParams
-  const month = monthParam ?? currentMonthParam()
-  const period = (periodParam === 'weekly' || periodParam === 'yearly') ? periodParam : 'monthly'
-  const week = weekParam ?? ''
+  const { month: monthParam, period: periodParam, week: weekParam, year: yearParam } = await searchParams
+  const period: Period = (periodParam === 'weekly' || periodParam === 'yearly') ? periodParam : 'monthly'
+  const now = new Date()
+  const month = monthParam ?? toYearMonth(now)
+  const week = weekParam ?? toISODate(startOfISOWeek(now))
+  const year = yearParam ?? String(now.getFullYear())
 
   const [summaryData, userCategories] = await Promise.all([
-    getDashboardData(session.user.id, month),
+    getDashboardData(session.user.id, period, weekParam, monthParam, yearParam),
     getUserCategories(session.user.id),
   ])
 
@@ -159,11 +138,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
           <Suspense fallback={<Skeleton className="h-8 w-28" />}>
-            <PeriodToggle />
+            <PeriodToggle currentPeriod={period} />
           </Suspense>
           <Suspense fallback={<Skeleton className="h-9 w-44" />}>
             {period === 'weekly' ? (
-              <WeekSelector month={month} currentWeek={week} />
+              <WeekSelector currentWeek={week} />
+            ) : period === 'yearly' ? (
+              <YearSelector currentYear={year} />
             ) : (
               <MonthSelector currentMonth={month} />
             )}
@@ -179,7 +160,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       <SummaryCards stats={summaryData} />
 
       {/* Charts */}
-      <ChartsSection month={month} week={week} initialData={summaryData} />
+      <ChartsSection initialData={summaryData} />
 
       {/* Bottom row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
