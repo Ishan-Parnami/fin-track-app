@@ -5,9 +5,20 @@ import type { TransactionWithCategory } from '@/types'
 
 interface RecentTransactionsProps {
   transactions: TransactionWithCategory[]
+  month: string
 }
 
-export function RecentTransactions({ transactions }: RecentTransactionsProps) {
+function monthToRange(month: string) {
+  const [year, mon] = month.split('-').map(Number)
+  const from = `${year}-${String(mon).padStart(2, '0')}-01`
+  const lastDay = new Date(year, mon, 0).getDate()
+  const to = `${year}-${String(mon).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+  return { from, to }
+}
+
+export function RecentTransactions({ transactions, month }: RecentTransactionsProps) {
+  const { from, to } = monthToRange(month)
+
   if (transactions.length === 0) {
     return (
       <p className="py-6 text-center text-sm text-muted-foreground">No transactions yet.</p>
@@ -40,7 +51,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
         </Link>
       ))}
       <div className="pt-3">
-        <Link href="/dashboard/transactions" className="text-xs text-primary hover:underline">
+        <Link href={`/dashboard/transactions?from=${from}&to=${to}`} className="text-xs text-primary hover:underline">
           View all transactions →
         </Link>
       </div>

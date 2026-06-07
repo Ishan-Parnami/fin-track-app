@@ -15,7 +15,7 @@ export default function DashboardLoading() {
       </div>
       <Card>
         <CardHeader><Skeleton className="h-5 w-40" /></CardHeader>
-        <CardContent><Skeleton className="h-[260px] w-full" /></CardContent>
+        <CardContent><Skeleton className="h-65 w-full" /></CardContent>
       </Card>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card><CardContent className="p-4"><Skeleton className="h-48 w-full" /></CardContent></Card>

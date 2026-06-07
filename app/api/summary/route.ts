@@ -24,31 +24,52 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const monthParam = searchParams.get('month') ?? new Date().toISOString().slice(0, 7)
   const period = (searchParams.get('period') ?? 'monthly') as 'weekly' | 'monthly' | 'yearly'
+  const weekParam = searchParams.get('week') // YYYY-MM-DD, week start
 
   if (!/^\d{4}-\d{2}$/.test(monthParam)) {
     return err('INVALID_MONTH', 'Month must be in YYYY-MM format', 400)
   }
 
-  const { from, to } = parseMonth(monthParam)
+  const { from: monthFrom, to } = parseMonth(monthParam)
   const userWhere = eq(transactions.userId, userId)
 
-  // --- Summary stats for selected month ---
+  // Compute rangeFrom and effectiveTo based on period
+  let rangeFrom: Date
+  let effectiveTo: Date
+  if (period === 'weekly' && weekParam) {
+    rangeFrom = new Date(`${weekParam}T00:00:00`)
+    effectiveTo = new Date(rangeFrom)
+    effectiveTo.setDate(effectiveTo.getDate() + 6)
+    effectiveTo.setHours(23, 59, 59, 999)
+  } else if (period === 'monthly') {
+    rangeFrom = new Date(monthFrom)
+    rangeFrom.setMonth(rangeFrom.getMonth() - 11)
+    effectiveTo = to
+  } else if (period === 'yearly') {
+    rangeFrom = new Date(0)
+    effectiveTo = to
+  } else {
+    rangeFrom = monthFrom
+    effectiveTo = to
+  }
+
+  // --- Summary stats for the period range ---
   const [incomeRow] = await db
     .select({ total: sum(transactions.amount) })
     .from(transactions)
-    .where(and(userWhere, eq(transactions.type, 'income'), gte(transactions.date, from), lte(transactions.date, to)))
+    .where(and(userWhere, eq(transactions.type, 'income'), gte(transactions.date, rangeFrom), lte(transactions.date, effectiveTo)))
 
   const [expenseRow] = await db
     .select({ total: sum(transactions.amount) })
     .from(transactions)
-    .where(and(userWhere, eq(transactions.type, 'expense'), gte(transactions.date, from), lte(transactions.date, to)))
+    .where(and(userWhere, eq(transactions.type, 'expense'), gte(transactions.date, rangeFrom), lte(transactions.date, effectiveTo)))
 
   const totalIncome = safeParse(incomeRow.total)
   const totalExpense = safeParse(expenseRow.total)
   const netBalance = totalIncome - totalExpense
   const savingsRate = totalIncome > 0 ? Math.round((netBalance / totalIncome) * 100) : 0
 
-  // --- Category breakdown (expenses for selected month) ---
+  // --- Category breakdown (expenses for the period range) ---
   const catRows = await db
     .select({
       categoryId: transactions.categoryId,
@@ -60,7 +81,7 @@ export async function GET(request: Request) {
     .from(transactions)
     .leftJoin(categories, eq(transactions.categoryId, categories.id))
     .where(
-      and(userWhere, eq(transactions.type, 'expense'), gte(transactions.date, from), lte(transactions.date, to))
+      and(userWhere, eq(transactions.type, 'expense'), gte(transactions.date, rangeFrom), lte(transactions.date, effectiveTo))
     )
     .groupBy(transactions.categoryId, categories.name, categories.color, categories.icon)
 
@@ -79,34 +100,32 @@ export async function GET(request: Request) {
   let chartData: ChartPoint[] = []
 
   if (period === 'weekly') {
-    // Aggregate by day within selected month
+    // Aggregate by day within the selected week window
     const rows = await db
       .select({
-        day: sql<string>`TO_CHAR(${transactions.date}, 'DD')`,
+        day: sql<string>`TO_CHAR(${transactions.date}, 'YYYY-MM-DD')`,
         type: transactions.type,
         total: sum(transactions.amount),
       })
       .from(transactions)
-      .where(and(userWhere, gte(transactions.date, from), lte(transactions.date, to)))
-      .groupBy(sql`TO_CHAR(${transactions.date}, 'DD')`, transactions.type)
+      .where(and(userWhere, gte(transactions.date, rangeFrom), lte(transactions.date, effectiveTo)))
+      .groupBy(sql`TO_CHAR(${transactions.date}, 'YYYY-MM-DD')`, transactions.type)
 
     const dayMap: Record<string, { income: number; expense: number }> = {}
     for (const r of rows) {
-      const d = r.day
-      if (!dayMap[d]) dayMap[d] = { income: 0, expense: 0 }
-      dayMap[d][r.type] += safeParse(r.total)
+      if (!dayMap[r.day]) dayMap[r.day] = { income: 0, expense: 0 }
+      dayMap[r.day][r.type] += safeParse(r.total)
     }
     chartData = Object.entries(dayMap)
-      .sort(([a], [b]) => parseInt(a) - parseInt(b))
-      .map(([day, v]) => ({
-        label: `Day ${parseInt(day)}`,
-        income: v.income,
-        expense: v.expense,
-        balance: v.income - v.expense,
-      }))
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([day, v]) => {
+        const d = new Date(`${day}T00:00:00`)
+        const label = d.toLocaleString('default', { weekday: 'short', month: 'short', day: 'numeric' })
+        return { label, income: v.income, expense: v.expense, balance: v.income - v.expense }
+      })
   } else if (period === 'monthly') {
-    // Last 12 months
-    const twelveMonthsAgo = new Date(from)
+    // Last 12 months ending at selected month
+    const twelveMonthsAgo = new Date(monthFrom)
     twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11)
 
     const rows = await db
@@ -116,7 +135,7 @@ export async function GET(request: Request) {
         total: sum(transactions.amount),
       })
       .from(transactions)
-      .where(and(userWhere, gte(transactions.date, twelveMonthsAgo), lte(transactions.date, to)))
+      .where(and(userWhere, gte(transactions.date, twelveMonthsAgo), lte(transactions.date, effectiveTo)))
       .groupBy(sql`TO_CHAR(${transactions.date}, 'YYYY-MM')`, transactions.type)
 
     const monthMap: Record<string, { income: number; expense: number }> = {}

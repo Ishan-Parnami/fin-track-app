@@ -10,6 +10,7 @@ import { TransactionTable } from '@/components/transactions/TransactionTable'
 import { TransactionFilters } from '@/components/transactions/TransactionFilters'
 import { AddTransactionDialog } from '@/components/transactions/AddTransactionDialog'
 import { EmptyState } from '@/components/shared/EmptyState'
+import { ResetFilters } from '@/components/shared/ResetFilters'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import type { TransactionWithCategory } from '@/types'
@@ -108,9 +109,14 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         <AddTransactionDialog categories={userCategories} />
       </div>
 
-      <Suspense fallback={<Skeleton className="h-8 w-full" />}>
-        <TransactionFilters categories={userCategories} />
-      </Suspense>
+      <div className="flex items-center gap-2 flex-wrap">
+        <Suspense fallback={<Skeleton className="h-8 w-full" />}>
+          <TransactionFilters categories={userCategories} />
+        </Suspense>
+        <Suspense fallback={null}>
+          <ResetFilters />
+        </Suspense>
+      </div>
 
       <Card>
         <CardHeader className="pb-2">

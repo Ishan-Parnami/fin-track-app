@@ -1,26 +1,21 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   AreaChart, Area, PieChart, Pie, Cell,
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatCurrency } from '@/lib/utils'
 import type { ChartPoint, CategorySummary, DashboardSummary } from '@/types'
-
-const PERIODS = [
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'yearly', label: 'Yearly' },
-] as const
 
 type Period = 'weekly' | 'monthly' | 'yearly'
 
 interface ChartsSectionProps {
   month: string
+  week: string
   initialData: DashboardSummary
 }
 
@@ -109,15 +104,18 @@ function PieChartView({ categories }: { categories: CategorySummary[] }) {
   )
 }
 
-export function ChartsSection({ month, initialData }: ChartsSectionProps) {
-  const [period, setPeriod] = useState<Period>('monthly')
+export function ChartsSection({ month, week, initialData }: ChartsSectionProps) {
+  const searchParams = useSearchParams()
+  const period = (searchParams.get('period') ?? 'monthly') as Period
   const [data, setData] = useState<DashboardSummary>(initialData)
   const [loading, setLoading] = useState(false)
 
-  const fetchData = useCallback(async (newMonth: string, newPeriod: Period) => {
+  const fetchData = useCallback(async (newMonth: string, newPeriod: Period, newWeek: string) => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/summary?month=${newMonth}&period=${newPeriod}`)
+      const params = new URLSearchParams({ month: newMonth, period: newPeriod })
+      if (newPeriod === 'weekly' && newWeek) params.set('week', newWeek)
+      const res = await fetch(`/api/summary?${params.toString()}`)
       const json = await res.json()
       if (json.success) setData(json.data)
     } finally {
@@ -125,34 +123,18 @@ export function ChartsSection({ month, initialData }: ChartsSectionProps) {
     }
   }, [])
 
-  function handlePeriod(p: Period) {
-    setPeriod(p)
-    fetchData(month, p)
-  }
+  useEffect(() => {
+    fetchData(month, period, week)
+  }, [month, period, week, fetchData])
 
   return (
     <div className="space-y-4">
-      {/* Period toggle — shared across all charts */}
-      <div className="flex gap-1">
-        {PERIODS.map((p) => (
-          <Button
-            key={p.value}
-            variant={period === p.value ? 'default' : 'ghost'}
-            size="sm"
-            className="h-7 text-xs"
-            onClick={() => handlePeriod(p.value)}
-            disabled={loading}
-          >
-            {p.label}
-          </Button>
-        ))}
-      </div>
 
       {loading ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <Skeleton className="h-75 rounded-xl" />
-          <Skeleton className="h-75 rounded-xl" />
-          <Skeleton className="h-75 rounded-xl" />
+          <Skeleton className="h-82 rounded-xl" />
+          <Skeleton className="h-82 rounded-xl" />
+          <Skeleton className="h-82 rounded-xl" />
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

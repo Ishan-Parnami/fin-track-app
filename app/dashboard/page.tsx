@@ -8,6 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SummaryCards } from '@/components/dashboard/SummaryCards'
 import { MonthSelector } from '@/components/dashboard/MonthSelector'
+import { WeekSelector } from '@/components/dashboard/WeekSelector'
+import { PeriodToggle } from '@/components/dashboard/PeriodToggle'
+import { ResetFilters } from '@/components/shared/ResetFilters'
 import { CategoryBreakdown } from '@/components/dashboard/CategoryBreakdown'
 import { RecentTransactions } from '@/components/dashboard/RecentTransactions'
 import { ChartsSection } from '@/components/dashboard/ChartsSection'
@@ -133,15 +136,17 @@ async function getUserCategories(userId: string) {
 }
 
 interface DashboardPageProps {
-  searchParams: Promise<{ month?: string }>
+  searchParams: Promise<{ month?: string; period?: string; week?: string }>
 }
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const session = await auth()
   if (!session?.user?.id) redirect('/auth/login')
 
-  const { month: monthParam } = await searchParams
+  const { month: monthParam, period: periodParam, week: weekParam } = await searchParams
   const month = monthParam ?? currentMonthParam()
+  const period = (periodParam === 'weekly' || periodParam === 'yearly') ? periodParam : 'monthly'
+  const week = weekParam ?? ''
 
   const [summaryData, userCategories] = await Promise.all([
     getDashboardData(session.user.id, month),
@@ -151,10 +156,22 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Top row */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <Suspense fallback={<Skeleton className="h-9 w-44" />}>
-          <MonthSelector currentMonth={month} />
-        </Suspense>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Suspense fallback={<Skeleton className="h-8 w-28" />}>
+            <PeriodToggle />
+          </Suspense>
+          <Suspense fallback={<Skeleton className="h-9 w-44" />}>
+            {period === 'weekly' ? (
+              <WeekSelector month={month} currentWeek={week} />
+            ) : (
+              <MonthSelector currentMonth={month} />
+            )}
+          </Suspense>
+          <Suspense fallback={null}>
+            <ResetFilters />
+          </Suspense>
+        </div>
         <AddTransactionDialog categories={userCategories} />
       </div>
 
@@ -162,7 +179,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       <SummaryCards stats={summaryData} />
 
       {/* Charts */}
-      <ChartsSection month={month} initialData={summaryData} />
+      <ChartsSection month={month} week={week} initialData={summaryData} />
 
       {/* Bottom row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -179,7 +196,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             <CardTitle className="text-base">Recent Transactions</CardTitle>
           </CardHeader>
           <CardContent>
-            <RecentTransactions transactions={summaryData.recentTransactions} />
+            <RecentTransactions transactions={summaryData.recentTransactions} month={month} />
           </CardContent>
         </Card>
       </div>

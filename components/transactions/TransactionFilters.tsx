@@ -30,9 +30,7 @@ export function TransactionFilters({ categories }: TransactionFiltersProps) {
   const months: { value: string; label: string }[] = []
   const now = new Date()
   for (let i = 0; i < 12; i++) {
-    const year = now.getFullYear()
-    const month = now.getMonth() - i
-    const d = new Date(year, month, 1)
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
     const value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`
     const label = d.toLocaleString('default', { month: 'long', year: 'numeric' })
     months.push({ value, label })
@@ -44,6 +42,10 @@ export function TransactionFilters({ categories }: TransactionFiltersProps) {
 
   const selectedType = searchParams.get('type') ?? 'all'
   const selectedCategoryId = searchParams.get('categoryId') ?? 'all'
+
+  const filteredCategories = selectedType === 'income' || selectedType === 'expense'
+    ? categories.filter((c) => c.type === selectedType)
+    : categories
   const selectedLimit = searchParams.get('limit') ?? '10'
 
   const selectedTypeLabel = selectedType === 'income' ? 'Income' : selectedType === 'expense' ? 'Expense' : 'All Types'
@@ -56,7 +58,14 @@ export function TransactionFilters({ categories }: TransactionFiltersProps) {
       {/* Type */}
       <Select
         value={selectedType}
-        onValueChange={(v) => update('type', v ?? 'all')}
+        onValueChange={(v) => {
+          const params = new URLSearchParams(searchParams.toString())
+          const val = v ?? 'all'
+          if (val === 'all') params.delete('type'); else params.set('type', val)
+          params.delete('categoryId')
+          params.delete('page')
+          router.push(`?${params.toString()}`)
+        }}
       >
         <SelectTrigger className="w-32 h-8 text-xs">
           <span>{selectedTypeLabel}</span>
@@ -82,7 +91,7 @@ export function TransactionFilters({ categories }: TransactionFiltersProps) {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Categories</SelectItem>
-          {categories.map((c) => (
+          {filteredCategories.map((c) => (
             <SelectItem key={c.id} value={c.id}>
               {c.icon} {c.name}
             </SelectItem>
