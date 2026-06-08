@@ -13,7 +13,7 @@ export function CategoryBreakdown({ categories }: CategoryBreakdownProps) {
   if (top5.length === 0) {
     return (
       <div className="py-8 text-center text-sm text-muted-foreground">
-        No expense data for this month.
+        No expense data for this time period.
       </div>
     )
   }

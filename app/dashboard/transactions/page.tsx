@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { and, desc, eq, gte, isNull, lte, or, count } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
+import { PAGINATION_MAX_LIMIT, PAGINATION_DEFAULT_LIMIT } from '@/lib/constants'
 import { db } from '@/lib/db'
 import { transactions, categories } from '@/lib/db/schema'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { TransactionTable } from '@/components/transactions/TransactionTable'
 import { TransactionFilters } from '@/components/transactions/TransactionFilters'
 import { AddTransactionDialog } from '@/components/transactions/AddTransactionDialog'
+import { ImportTransactionsDialog } from '@/components/transactions/ImportTransactionsDialog'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { ResetFilters } from '@/components/shared/ResetFilters'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -39,7 +41,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
   const from = params.from
   const to = params.to
   const page = Math.max(1, parseInt(params.page ?? '1'))
-  const limit = Math.min(50, parseInt(params.limit ?? '10'))
+  const limit = Math.min(PAGINATION_MAX_LIMIT, parseInt(params.limit ?? String(PAGINATION_DEFAULT_LIMIT)))
   const offset = (page - 1) * limit
 
   const conditions = [eq(transactions.userId, userId)]
@@ -106,7 +108,10 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-lg font-semibold">All Transactions</h2>
-        <AddTransactionDialog categories={userCategories} />
+        <div className="flex gap-2">
+          <ImportTransactionsDialog />
+          <AddTransactionDialog categories={userCategories} />
+        </div>
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
