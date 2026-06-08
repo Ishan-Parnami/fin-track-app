@@ -43,12 +43,33 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account, profile }) {
       if (user) token.id = user.id
+      // Capture providerImage once on first OAuth login
+      if (account && account.provider !== 'credentials' && profile?.picture) {
+        const providerImg = profile.picture as string
+        await db
+          .update(users)
+          .set({ providerImage: providerImg })
+          .where(eq(users.id, user!.id as string))
+      }
+      // Always sync name and image from DB so session reflects latest values
+      if (token.id) {
+        const dbUser = await db.query.users.findFirst({
+          where: eq(users.id, token.id as string),
+          columns: { name: true, image: true },
+        })
+        if (dbUser) {
+          token.name = dbUser.name
+          token.picture = dbUser.image
+        }
+      }
       return token
     },
     async session({ session, token }) {
       if (token.id) session.user.id = token.id as string
+      if (token.name) session.user.name = token.name
+      if (token.picture !== undefined) session.user.image = token.picture as string | null
       return session
     },
   },
