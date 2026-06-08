@@ -4,6 +4,7 @@ import { categories, transactions } from '@/lib/db/schema'
 import { requireAuth } from '@/lib/auth-guard'
 import { ok } from '@/lib/api-response'
 import { getDateRange } from '@/lib/utils'
+import { RECENT_TRANSACTIONS_COUNT, SUMMARY_CACHE_SECONDS } from '@/lib/constants'
 import type { CategorySummary, ChartPoint, DashboardSummary, TransactionWithCategory } from '@/types'
 
 function safeParse(val: string | null): number {
@@ -172,7 +173,7 @@ export async function GET(request: Request) {
     .leftJoin(categories, eq(transactions.categoryId, categories.id))
     .where(userWhere)
     .orderBy(desc(transactions.date))
-    .limit(5)
+    .limit(RECENT_TRANSACTIONS_COUNT)
 
   const recentTransactions: TransactionWithCategory[] = recentRows.map((r) => ({
     ...r,
@@ -189,5 +190,7 @@ export async function GET(request: Request) {
     recentTransactions,
   }
 
-  return ok(data)
+  const response = ok(data)
+  response.headers.set('Cache-Control', `private, max-age=${SUMMARY_CACHE_SECONDS}`)
+  return response
 }

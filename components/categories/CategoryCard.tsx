@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Pencil, Trash2, Check, X, Loader2 } from 'lucide-react'
+import { Pencil, Trash2, Check, X, Loader2, Copy } from 'lucide-react'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { Badge } from '@/components/ui/badge'
@@ -111,6 +111,18 @@ export function CategoryCard({ category }: CategoryCardProps) {
             <span className="text-xs text-muted-foreground capitalize">{category.type}</span>
           </div>
         </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0"
+          title="Copy category ID"
+          onClick={() => {
+            navigator.clipboard.writeText(category.id)
+            toast.success('Category ID copied')
+          }}
+        >
+          <Copy className="h-3.5 w-3.5" />
+        </Button>
         {category.isDefault ? (
           <Badge variant="secondary" className="text-xs">Default</Badge>
         ) : (

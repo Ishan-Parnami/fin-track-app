@@ -14,7 +14,7 @@ export default async function SettingsPage() {
 
   const user = await db.query.users.findFirst({
     where: eq(users.id, session.user.id),
-    columns: { name: true, email: true, image: true, password: true },
+    columns: { name: true, email: true, image: true, password: true, cloudinaryPublicId: true },
   })
   if (!user) redirect('/auth/login')
 
@@ -32,6 +32,7 @@ export default async function SettingsPage() {
           <SettingsForm
             user={{ name: user.name, email: user.email, image: user.image }}
             hasPassword={!!user.password}
+            hasCustomImage={!!user.cloudinaryPublicId}
           />
         </CardContent>
       </Card>

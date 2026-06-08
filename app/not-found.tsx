@@ -7,10 +7,10 @@ export default function NotFound() {
       <h1 className="text-2xl font-bold">Page not found</h1>
       <p className="text-muted-foreground text-sm">The page you&apos;re looking for doesn&apos;t exist.</p>
       <Link
-        href="/dashboard"
+        href="/"
         className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
       >
-        Go to Dashboard
+        Go to Home
       </Link>
     </div>
   )

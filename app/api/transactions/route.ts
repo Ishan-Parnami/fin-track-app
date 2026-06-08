@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { transactions, categories } from '@/lib/db/schema'
 import { requireAuth } from '@/lib/auth-guard'
 import { ok, err } from '@/lib/api-response'
+import { PAGINATION_MAX_LIMIT, PAGINATION_DEFAULT_LIMIT } from '@/lib/constants'
 import { transactionSchema } from '@/lib/validations'
 
 export async function GET(request: Request) {
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
   const from = searchParams.get('from')
   const to = searchParams.get('to')
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1'))
-  const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') ?? '10')))
+  const limit = Math.min(PAGINATION_MAX_LIMIT, Math.max(1, parseInt(searchParams.get('limit') ?? String(PAGINATION_DEFAULT_LIMIT))))
   const offset = (page - 1) * limit
 
   const conditions = [eq(transactions.userId, userId)]

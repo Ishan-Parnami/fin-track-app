@@ -43,3 +43,8 @@ next-env.d.ts
 
 # Misc
 Claude.md
+demo.txt
+*.png
+*.jpg
+*.jpeg
+*.gif

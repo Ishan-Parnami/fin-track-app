@@ -23,6 +23,8 @@ export const users = pgTable('users', {
   emailVerified: timestamp('email_verified', { mode: 'date' }),
   password: text('password'), // null for OAuth-only users
   image: text('image'),
+  providerImage: text('provider_image'),
+  cloudinaryPublicId: text('cloudinary_public_id'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
