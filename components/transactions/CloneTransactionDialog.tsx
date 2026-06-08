@@ -37,7 +37,7 @@ export function CloneTransactionDialog({ transaction, categories }: CloneTransac
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={setOpen} disablePointerDismissal>
       <DialogTrigger
         render={
           <Button variant="outline" size="sm" className="gap-1.5">

@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,7 +20,7 @@ interface ConfirmDialogProps {
   description: string
   confirmLabel?: string
   destructive?: boolean
-  onConfirm: () => void
+  onConfirm: () => Promise<void> | void
 }
 
 export function ConfirmDialog({
@@ -30,8 +31,15 @@ export function ConfirmDialog({
   destructive = false,
   onConfirm,
 }: ConfirmDialogProps) {
+  const [open, setOpen] = useState(false)
+
+  async function handleConfirm() {
+    await onConfirm()
+    setOpen(false)
+  }
+
   return (
-    <AlertDialog>
+    <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger render={trigger as React.ReactElement} />
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -41,7 +49,7 @@ export function ConfirmDialog({
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            onClick={onConfirm}
+            onClick={handleConfirm}
             className={cn(destructive && 'bg-destructive text-white hover:bg-destructive/90')}
           >
             {confirmLabel}

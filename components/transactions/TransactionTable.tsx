@@ -103,7 +103,7 @@ export function TransactionTable({ transactions, categories }: TransactionTableP
       </div>
 
       {/* Edit dialog */}
-      <Dialog open={!!editTx} onOpenChange={(o) => !o && setEditTx(null)}>
+      <Dialog open={!!editTx} onOpenChange={(o) => !o && setEditTx(null)} disablePointerDismissal>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Transaction</DialogTitle>
@@ -120,6 +120,8 @@ export function TransactionTable({ transactions, categories }: TransactionTableP
               }}
               onSubmit={handleEdit}
               submitLabel="Save Changes"
+              requireDirty
+              onCancel={() => setEditTx(null)}
             />
           )}
         </DialogContent>

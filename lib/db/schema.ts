@@ -91,8 +91,8 @@ export const transactions = pgTable(
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
     categoryId: uuid('category_id').references(() => categories.id, {
-      onDelete: 'set null',
-    }),
+      onDelete: 'restrict',
+    }).notNull(),
     type: transactionTypeEnum('type').notNull(),
     amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
     description: text('description'),
