@@ -34,7 +34,7 @@ export function AddTransactionDialog({ categories }: AddTransactionDialogProps) 
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={setOpen} disablePointerDismissal>
       <DialogTrigger
         render={
           <Button size="sm" className="gap-1.5">

@@ -191,7 +191,7 @@ export function SettingsForm({ user, hasPassword, hasCustomImage }: SettingsForm
             <Input value={user.email ?? ''} disabled className="opacity-60" />
             <p className="text-xs text-muted-foreground">Email cannot be changed.</p>
           </div>
-          <Button type="submit" size="sm" disabled={nameForm.formState.isSubmitting}>
+          <Button type="submit" size="sm" disabled={nameForm.formState.isSubmitting || !nameForm.formState.isDirty}>
             {nameForm.formState.isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Name'}
           </Button>
         </form>

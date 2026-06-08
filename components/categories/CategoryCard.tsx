@@ -27,12 +27,13 @@ interface CategoryCardProps {
 export function CategoryCard({ category }: CategoryCardProps) {
   const [editing, setEditing] = useState(false)
   const [color, setColor] = useState(category.color)
+  const colorChanged = color !== category.color
 
   const {
     register,
     handleSubmit,
     setValue,
-    formState: { isSubmitting },
+    formState: { isSubmitting, isDirty },
   } = useForm<EditValues>({
     resolver: zodResolver(editSchema),
     defaultValues: { name: category.name, color: category.color, icon: category.icon },
@@ -81,7 +82,7 @@ export function CategoryCard({ category }: CategoryCardProps) {
               <ColorPicker value={color} onChange={(c) => { setColor(c); setValue('color', c) }} />
             </div>
             <div className="flex gap-2">
-              <Button type="submit" size="sm" className="h-7 gap-1" disabled={isSubmitting}>
+              <Button type="submit" size="sm" className="h-7 gap-1" disabled={isSubmitting || (!isDirty && !colorChanged)}>
                 {isSubmitting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
                 Save
               </Button>

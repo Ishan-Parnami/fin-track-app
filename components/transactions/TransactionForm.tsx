@@ -13,7 +13,7 @@ import type { Category } from '@/types'
 const formSchema = z.object({
   type: z.enum(['income', 'expense']),
   amount: z.number().positive('Amount must be positive'),
-  categoryId: z.string().optional(),
+  categoryId: z.string().uuid('Category is required'),
   description: z.string().max(500).optional(),
   date: z.string().min(1, 'Date is required'),
 })
@@ -24,17 +24,20 @@ interface TransactionFormProps {
   categories: Category[]
   defaultValues?: Partial<TransactionFormValues>
   onSubmit: (values: TransactionFormValues) => Promise<void>
+  onCancel?: () => void
   submitLabel?: string
   loading?: boolean
+  requireDirty?: boolean
 }
 
-export function TransactionForm({ categories, defaultValues, onSubmit, submitLabel = 'Save', loading }: TransactionFormProps) {
+export function TransactionForm({ categories, defaultValues, onSubmit, onCancel, submitLabel = 'Save', loading, requireDirty = false }: TransactionFormProps) {
   const {
     register,
     handleSubmit,
     watch,
     setValue,
-    formState: { errors, isSubmitting },
+    reset,
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<TransactionFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -60,7 +63,7 @@ export function TransactionForm({ categories, defaultValues, onSubmit, submitLab
             <button
               key={t}
               type="button"
-              onClick={() => { setValue('type', t); setValue('categoryId', undefined) }}
+              onClick={() => { setValue('type', t); setValue('categoryId', '') }}
               className={`flex-1 py-2 text-sm font-medium transition-colors capitalize ${
                 type === t
                   ? t === 'income' ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'
@@ -101,7 +104,7 @@ export function TransactionForm({ categories, defaultValues, onSubmit, submitLab
         <Select
           key={type}
           value={categoryId ?? null}
-          onValueChange={(v) => setValue('categoryId', v ?? undefined)}
+          onValueChange={(v) => setValue('categoryId', v ?? '')}
         >
           <SelectTrigger>
             {selectedCategory ? (
@@ -121,6 +124,7 @@ export function TransactionForm({ categories, defaultValues, onSubmit, submitLab
             ))}
           </SelectContent>
         </Select>
+        {errors.categoryId && <p className="text-xs text-destructive">{errors.categoryId.message}</p>}
       </div>
 
       {/* Description */}
@@ -129,9 +133,16 @@ export function TransactionForm({ categories, defaultValues, onSubmit, submitLab
         <Input id="description" placeholder="What was this for?" {...register('description')} />
       </div>
 
-      <Button type="submit" className="w-full" disabled={submitting}>
-        {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : submitLabel}
-      </Button>
+      <div className="flex gap-2">
+        <Button type="submit" className="flex-1" disabled={submitting || (requireDirty && !isDirty)}>
+          {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : submitLabel}
+        </Button>
+        {onCancel && (
+          <Button type="button" variant="outline" className="flex-1" onClick={() => { reset(); onCancel() }}>
+            Cancel
+          </Button>
+        )}
+      </div>
     </form>
   )
 }

@@ -24,7 +24,7 @@ export function EditTransactionSection({ transaction, categories }: EditTransact
     const result = await updateTransaction(transaction.id, formData)
     if (result.success) {
       toast.success('Transaction updated')
-      router.refresh()
+      router.push('/dashboard/transactions')
     } else {
       toast.error(result.error)
     }
@@ -42,6 +42,8 @@ export function EditTransactionSection({ transaction, categories }: EditTransact
       }}
       onSubmit={handleSubmit}
       submitLabel="Save Changes"
+      requireDirty
+      onCancel={() => router.push('/dashboard/transactions')}
     />
   )
 }
